@@ -5,6 +5,7 @@ import { CARRIERS } from '../modem/carriers'
 import {
   describeUsbnet,
   IPAD_USBNET_MODE,
+  isIpv4Only,
   planIpadSetup,
   recommendApn,
   type ApnChoice,
@@ -105,6 +106,34 @@ function ApnOptions({
   )
 }
 
+interface Ipv6OptionProps {
+  ipv4Only: boolean
+  disabled: boolean
+  onChange: (ipv4Only: boolean) => void
+}
+
+function Ipv6Option({ ipv4Only, disabled, onChange }: Ipv6OptionProps) {
+  return (
+    <fieldset className="apn" disabled={disabled}>
+      <legend>IPv6</legend>
+      <label className="apn__option">
+        <input
+          type="checkbox"
+          checked={ipv4Only}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span>
+          <strong>关闭 IPv6（仅 IPv4）</strong>
+          <small>
+            模块只向运营商申请 IPv4 地址，iPad 不会再拿到 240e 等开头的公网 IPv6 地址。fe80::
+            开头的是 iPad 与模块之间的本地地址，不会出现在互联网上。
+          </small>
+        </span>
+      </label>
+    </fieldset>
+  )
+}
+
 export default function SetupWizard({
   snapshot,
   operation,
@@ -116,6 +145,8 @@ export default function SetupWizard({
 }: SetupWizardProps) {
   const [apnMode, setApnMode] = useState<ApnMode>('recommended')
   const [customApn, setCustomApn] = useState('')
+  const [ipv4OnlyChoice, setIpv4OnlyChoice] = useState<boolean | null>(null)
+  const ipv4Only = ipv4OnlyChoice ?? isIpv4Only(snapshot)
   const recommendation = recommendApn(snapshot)
 
   const choice: ApnChoice =
@@ -128,7 +159,7 @@ export default function SetupWizard({
   let plan: SetupPlan | null = null
   let planError: string | null = null
   try {
-    plan = planIpadSetup(snapshot, choice)
+    plan = planIpadSetup(snapshot, choice, { ipv4Only })
   } catch (error) {
     planError = (error as Error).message
   }
@@ -171,6 +202,7 @@ export default function SetupWizard({
             onModeChange={setApnMode}
             onCustomApnChange={setCustomApn}
           />
+          <Ipv6Option ipv4Only={ipv4Only} disabled={active} onChange={setIpv4OnlyChoice} />
           {planError && <p className="notice notice--error">{planError}</p>}
           {plan && plan.warnings.length > 0 && (
             <ul className="notice notice--warn notice--list">
@@ -214,7 +246,7 @@ export default function SetupWizard({
 
       {nothingToDo && !ownOperation && (
         <p className="notice notice--good" data-testid="already-ready">
-          模块已经是 ECM 模式，APN 也无需修改。可以直接拔下模块，按第 3 步接到 iPad 上。
+          模块已经是 ECM 模式，APN 和 IPv6 设置也无需修改。可以直接拔下模块，按第 3 步接到 iPad 上。
         </p>
       )}
 
@@ -226,6 +258,7 @@ export default function SetupWizard({
           <span>
             现在拔下模块，用 USB-C 数据线接到 iPad，打开「设置 → 以太网」，应能看到名为
             「Baiwang」之类的网卡，IP 地址形如 192.168.225.x。详细说明见下方第 3 步。
+            {isIpv4Only(snapshot) && ' IPv6 已关闭，网卡里不会出现 240e 等开头的公网 IPv6 地址。'}
           </span>
         </div>
       )}

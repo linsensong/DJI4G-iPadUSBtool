@@ -4,6 +4,8 @@ import { createBackup } from './backup'
 import { carrierFromPlmn } from './carriers'
 import {
   assessCommand,
+  describePdpType,
+  isIpv4Only,
   planFactoryUsbnet,
   planIpadSetup,
   planRestore,
@@ -48,7 +50,7 @@ describe('planIpadSetup', () => {
       'AT+QCFG="usbnet",1',
       'AT+CFUN=1,1',
     ])
-    expect(plan.target).toEqual({ usbnet: 1, apn: 'ctnet' })
+    expect(plan.target).toEqual({ usbnet: 1, apn: 'ctnet', pdpType: null })
     expect(plan.warnings).toEqual([])
   })
 
@@ -71,6 +73,38 @@ describe('planIpadSetup', () => {
     expect(commands(planIpadSetup(snapshot, { kind: 'set', apn: 'ctnet' }))[0]).toBe(
       'AT+CGDCONT=1,"IP","ctnet"',
     )
+  })
+
+  it('turns IPv6 off together with the APN on a factory module', () => {
+    const plan = planIpadSetup(makeSnapshot(), { kind: 'set', apn: 'ctnet' }, { ipv4Only: true })
+    expect(commands(plan)).toEqual(['AT+CGDCONT=1,"IP","ctnet"', 'AT+QCFG="usbnet",1', 'AT+CFUN=1,1'])
+    expect(plan.steps[0].title).toBe('设置 APN 为「ctnet」，关闭 IPv6（仅 IPv4）')
+    expect(plan.target).toEqual({ usbnet: 1, apn: 'ctnet', pdpType: 'IP' })
+  })
+
+  it('only rewrites the PDP type when a configured module should drop IPv6', () => {
+    const snapshot = makeSnapshot({
+      usbnet: 1,
+      pdpContexts: [{ cid: 1, pdpType: 'IPV4V6', apn: 'ctnet' }],
+    })
+    const plan = planIpadSetup(snapshot, { kind: 'keep' }, { ipv4Only: true })
+    expect(commands(plan)).toEqual(['AT+CGDCONT=1,"IP","ctnet"', 'AT+CFUN=1,1'])
+    expect(plan.steps[0].title).toBe('关闭 IPv6（仅 IPv4）')
+  })
+
+  it('leaves an IPv4-only module alone and can turn IPv6 back on', () => {
+    const snapshot = makeSnapshot({ usbnet: 1, pdpContexts: [{ cid: 1, pdpType: 'IP', apn: 'ctnet' }] })
+    expect(planIpadSetup(snapshot, { kind: 'keep' }, { ipv4Only: true }).steps).toEqual([])
+
+    const dualStack = planIpadSetup(snapshot, { kind: 'keep' }, { ipv4Only: false })
+    expect(commands(dualStack)).toEqual(['AT+CGDCONT=1,"IPV4V6","ctnet"', 'AT+CFUN=1,1'])
+    expect(dualStack.steps[0].title).toBe('IP 类型设为 IPv4 + IPv6')
+    expect(dualStack.target.pdpType).toBe('IPV4V6')
+  })
+
+  it('keeps an empty, network-assigned APN when only IPv6 is turned off', () => {
+    const plan = planIpadSetup(makeSnapshot({ usbnet: 1 }), { kind: 'keep' }, { ipv4Only: true })
+    expect(commands(plan)).toEqual(['AT+CGDCONT=1,"IP",""', 'AT+CFUN=1,1'])
   })
 
   it('rejects APNs that could break out of the AT command', () => {
@@ -114,7 +148,14 @@ describe('planRestore', () => {
       'AT+QCFG="usbnet",0',
       'AT+CFUN=1,1',
     ])
-    expect(plan.target).toEqual({ usbnet: 0, apn: '' })
+    expect(plan.target).toEqual({ usbnet: 0, apn: '', pdpType: 'IPV4V6' })
+  })
+
+  it('turns IPv6 back on when the backup was dual-stack', () => {
+    const ipv4Only = makeSnapshot({ usbnet: 1, pdpContexts: [{ cid: 1, pdpType: 'IP', apn: 'ctnet' }] })
+    const plan = planRestore(original, ipv4Only)
+    expect(commands(plan)[0]).toBe('AT+CGDCONT=1,"IPV4V6",""')
+    expect(plan.steps[0].title).toBe('清空 APN（由网络自动分配），IP 类型设为 IPv4 + IPv6')
   })
 
   it('does nothing when the module already matches the backup', () => {
@@ -134,6 +175,18 @@ describe('planRestore', () => {
   it('falls back to usbnet 0 when there is no backup', () => {
     expect(commands(planFactoryUsbnet(configured))).toEqual(['AT+QCFG="usbnet",0', 'AT+CFUN=1,1'])
     expect(planFactoryUsbnet(makeSnapshot()).steps).toEqual([])
+  })
+})
+
+describe('PDP type helpers', () => {
+  it('names the PDP types and detects IPv4-only contexts', () => {
+    expect(describePdpType('IP')).toBe('仅 IPv4')
+    expect(describePdpType('ipv4v6')).toBe('IPv4 + IPv6')
+    expect(describePdpType('PPP')).toBe('PPP')
+    expect(describePdpType(undefined)).toBe('未知')
+    expect(isIpv4Only(makeSnapshot({ pdpContexts: [{ cid: 1, pdpType: 'ip', apn: 'ctnet' }] }))).toBe(true)
+    expect(isIpv4Only(makeSnapshot())).toBe(false)
+    expect(isIpv4Only(makeSnapshot({ pdpContexts: [] }))).toBe(false)
   })
 })
 

@@ -99,6 +99,51 @@ describe('<App />', () => {
     expect(screen.queryByRole('button', { name: /开始配置/ })).not.toBeInTheDocument()
   })
 
+  it('turns IPv6 off on a configured module from the setup wizard', async () => {
+    renderApp({
+      demoModuleOptions: {
+        usbnet: 1,
+        pdpContexts: [{ cid: 1, pdpType: 'IPV4V6', apn: 'ctnet' }],
+        rebootDelayMs: 60,
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /演示模式/ }))
+    expect(await screen.findByTestId('already-ready')).toBeInTheDocument()
+    expect(screen.getByTestId('tile-apn')).toHaveTextContent('IPv4 + IPv6')
+
+    const ipv4Only = screen.getByRole('checkbox', { name: /关闭 IPv6（仅 IPv4）/ })
+    expect(ipv4Only).not.toBeChecked()
+    fireEvent.click(ipv4Only)
+    expect(screen.queryByTestId('already-ready')).not.toBeInTheDocument()
+    expect(screen.getByText('AT+CGDCONT=1,"IP","ctnet"')).toBeInTheDocument()
+    expect(screen.queryByText('AT+QCFG="usbnet",1')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /开始配置/ }))
+    await waitFor(() => expect(screen.getByTestId('setup-success')).toBeInTheDocument(), {
+      timeout: 4000,
+    })
+    expect(screen.getByTestId('setup-success')).toHaveTextContent('IPv6 已关闭')
+    expect(screen.getByTestId('tile-apn')).toHaveTextContent('ctnet')
+    expect(screen.getByTestId('tile-apn')).toHaveTextContent('仅 IPv4')
+  })
+
+  it('shows the IPv6 option as already off for an IPv4-only module', async () => {
+    renderApp({
+      demoModuleOptions: { usbnet: 1, pdpContexts: [{ cid: 1, pdpType: 'IP', apn: 'ctnet' }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /演示模式/ }))
+    expect(await screen.findByTestId('already-ready')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /关闭 IPv6/ })).toBeChecked()
+  })
+
+  it('documents the sleep disconnect in the iPad guide', () => {
+    renderApp()
+    const faq = screen.getByTestId('faq-sleep')
+    expect(faq).toHaveTextContent('休眠后断网')
+    expect(faq).toHaveTextContent('锁定/解锁')
+    expect(faq).toHaveTextContent('拔下 USB 线再插上')
+  })
+
   it('guards dangerous commands in the AT console', async () => {
     renderApp()
     await connectDemo()

@@ -1,6 +1,6 @@
 import { maskIdentifier } from '../lib/environment'
 import type { SimState } from '../modem/parse'
-import { describeUsbnet, IPAD_USBNET_MODE, USBNET_MODES } from '../modem/plan'
+import { describePdpType, describeUsbnet, IPAD_USBNET_MODE, USBNET_MODES } from '../modem/plan'
 import { primaryContext, type ModemSnapshot } from '../modem/status'
 
 interface StatusPanelProps {
@@ -112,7 +112,7 @@ export default function StatusPanel({ snapshot, reading, onRefresh }: StatusPane
         <Tile
           label="APN（上下文 1）"
           value={apn ? apn.apn || '（空，由网络分配）' : '未配置'}
-          hint={apn?.pdpType}
+          hint={apn ? describePdpType(apn.pdpType) : undefined}
           testId="tile-apn"
         />
         <Tile

@@ -101,6 +101,34 @@ describe('iPad setup end to end', () => {
     expect(result.mismatches).toHaveLength(2)
   })
 
+  it('turns IPv6 off on a module that is already in ECM mode and verifies it', async () => {
+    const module = new SimulatedModule({
+      usbnet: 1,
+      pdpContexts: [{ cid: 1, pdpType: 'IPV4V6', apn: 'ctnet' }],
+      rebootDelayMs: 50,
+    })
+    const connector = createSimulatedConnector(module)
+    const channel = await connector.request()
+    const plan = planIpadSetup(await readSnapshot(channel), { kind: 'keep' }, { ipv4Only: true })
+
+    await expect(applyPlan(channel, plan)).resolves.toBe('rebooting')
+    const rebooted = await waitForModule(connector, fast)
+    const result = await verifyPlan(rebooted!, plan)
+    expect(result).toMatchObject({ ok: true, mismatches: [] })
+    expect(module.pdpContexts[0]).toEqual({ cid: 1, pdpType: 'IP', apn: 'ctnet' })
+    expect(module.history).not.toContain('AT+QCFG="usbnet",1')
+  })
+
+  it('reports a module that kept IPv6 after the reboot', async () => {
+    const module = new SimulatedModule({ usbnet: 1, pdpContexts: [{ cid: 1, pdpType: 'IPV4V6', apn: 'ctnet' }] })
+    const channel = await createSimulatedConnector(module).request()
+    const plan = planIpadSetup(await readSnapshot(channel), { kind: 'keep' }, { ipv4Only: true })
+
+    const result = await verifyPlan(channel, plan)
+    expect(result.ok).toBe(false)
+    expect(result.mismatches).toEqual(['IP 类型应为「仅 IPv4」，实际为「IPv4 + IPv6」'])
+  })
+
   it('gives up waiting when the module never returns', async () => {
     const module = new SimulatedModule({ rebootDelayMs: 10_000 })
     module.reboot()

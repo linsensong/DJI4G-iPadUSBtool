@@ -27,6 +27,29 @@ export interface ApnRecommendation {
 
 const APN_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$/
 const PDP_TYPES = ['IP', 'IPV6', 'IPV4V6']
+/** PDP type "IP" makes the module request only an IPv4 bearer, so no public IPv6 prefix reaches the iPad. */
+export const IPV4_ONLY_PDP_TYPE = 'IP'
+const DUAL_STACK_PDP_TYPE = 'IPV4V6'
+
+const PDP_TYPE_NAMES: Record<string, string> = {
+  IP: '仅 IPv4',
+  IPV4V6: 'IPv4 + IPv6',
+  IPV6: '仅 IPv6',
+}
+
+export function describePdpType(pdpType: string | undefined): string {
+  if (!pdpType) return '未知'
+  return PDP_TYPE_NAMES[pdpType.toUpperCase()] ?? pdpType
+}
+
+export function isIpv4Only(snapshot: Pick<ModemSnapshot, 'pdpContexts'>): boolean {
+  return primaryContext(snapshot)?.pdpType.toUpperCase() === IPV4_ONLY_PDP_TYPE
+}
+
+export interface IpadSetupOptions {
+  /** `true` writes PDP type IP, `false` turns an IPv4-only context back into IPV4V6, omitted keeps it. */
+  ipv4Only?: boolean
+}
 
 export function validateApn(apn: string): string | null {
   if (!apn.trim()) return 'APN 不能为空'
@@ -69,14 +92,26 @@ export interface SetupPlan {
   kind: 'ipad' | 'restore'
   steps: PlanStep[]
   /** Values to confirm after the reboot; `null` means "not part of this plan". */
-  target: { usbnet: number | null; apn: string | null }
+  target: { usbnet: number | null; apn: string | null; pdpType: string | null }
   warnings: string[]
 }
 
-function apnStep(pdpType: string, apn: string): PlanStep {
+function contextStep(
+  pdpType: string,
+  apn: string,
+  changes: { apn: boolean; pdpType: boolean },
+): PlanStep | null {
+  if (!changes.apn && !changes.pdpType) return null
+  const parts: string[] = []
+  if (changes.apn) parts.push(apn ? `设置 APN 为「${apn}」` : '清空 APN（由网络自动分配）')
+  if (changes.pdpType) {
+    parts.push(
+      pdpType === IPV4_ONLY_PDP_TYPE ? '关闭 IPv6（仅 IPv4）' : `IP 类型设为 ${describePdpType(pdpType)}`,
+    )
+  }
   return {
     id: 'apn',
-    title: apn ? `设置 APN 为「${apn}」` : '清空 APN（由网络自动分配）',
+    title: parts.join('，'),
     command: `AT+CGDCONT=1,"${pdpType}","${apn}"`,
     timeoutMs: 5000,
     mayReboot: false,
@@ -108,7 +143,13 @@ function withReboot(steps: PlanStep[]): PlanStep[] {
 
 function safePdpType(pdpType: string | undefined): string {
   const upper = (pdpType ?? '').toUpperCase()
-  return PDP_TYPES.includes(upper) ? upper : 'IPV4V6'
+  return PDP_TYPES.includes(upper) ? upper : DUAL_STACK_PDP_TYPE
+}
+
+function targetPdpType(current: string, ipv4Only: boolean | undefined): string {
+  if (ipv4Only === undefined) return current
+  if (ipv4Only) return IPV4_ONLY_PDP_TYPE
+  return current === IPV4_ONLY_PDP_TYPE ? DUAL_STACK_PDP_TYPE : current
 }
 
 function environmentWarnings(snapshot: ModemSnapshot): string[] {
@@ -132,25 +173,39 @@ function environmentWarnings(snapshot: ModemSnapshot): string[] {
   return warnings
 }
 
-export function planIpadSetup(snapshot: ModemSnapshot, choice: ApnChoice): SetupPlan {
+export function planIpadSetup(
+  snapshot: ModemSnapshot,
+  choice: ApnChoice,
+  options: IpadSetupOptions = {},
+): SetupPlan {
   const steps: PlanStep[] = []
   let targetApn: string | null = null
   if (choice.kind === 'set') {
     const error = validateApn(choice.apn)
     if (error) throw new Error(error)
     targetApn = choice.apn.trim()
-    const current = primaryContext(snapshot)
-    if (current?.apn.toLowerCase() !== targetApn.toLowerCase()) {
-      steps.push(apnStep(safePdpType(current?.pdpType), targetApn))
-    }
   }
+  const current = primaryContext(snapshot)
+  const currentApn = current?.apn ?? ''
+  const currentPdpType = safePdpType(current?.pdpType)
+  const pdpType = targetPdpType(currentPdpType, options.ipv4Only)
+  const apnChanged = targetApn !== null && currentApn.toLowerCase() !== targetApn.toLowerCase()
+  const step = contextStep(pdpType, targetApn ?? currentApn, {
+    apn: apnChanged,
+    pdpType: pdpType !== currentPdpType,
+  })
+  if (step) steps.push(step)
   if (snapshot.usbnet !== IPAD_USBNET_MODE) {
     steps.push(usbnetStep(IPAD_USBNET_MODE))
   }
   return {
     kind: 'ipad',
     steps: withReboot(steps),
-    target: { usbnet: IPAD_USBNET_MODE, apn: targetApn },
+    target: {
+      usbnet: IPAD_USBNET_MODE,
+      apn: targetApn,
+      pdpType: options.ipv4Only === undefined ? null : pdpType,
+    },
     warnings: environmentWarnings(snapshot),
   }
 }
@@ -165,15 +220,18 @@ export function planRestore(backup: ModemBackup, snapshot: ModemSnapshot): Setup
 
   const saved = backup.pdpContexts.find((context) => context.cid === 1) ?? null
   let targetApn: string | null = null
+  let targetType: string | null = null
   if (saved) {
     if (saved.apn && validateApn(saved.apn)) {
       throw new Error(`备份中的 APN「${saved.apn}」格式无效，已拒绝恢复`)
     }
     const current = primaryContext(snapshot)
-    const pdpType = safePdpType(saved.pdpType)
-    if (current?.apn !== saved.apn || safePdpType(current?.pdpType) !== pdpType) {
-      steps.push(apnStep(pdpType, saved.apn))
-    }
+    targetType = safePdpType(saved.pdpType)
+    const step = contextStep(targetType, saved.apn, {
+      apn: current?.apn !== saved.apn,
+      pdpType: safePdpType(current?.pdpType) !== targetType,
+    })
+    if (step) steps.push(step)
     targetApn = saved.apn
   }
   if (backup.usbnet !== null && backup.usbnet !== snapshot.usbnet) {
@@ -182,7 +240,7 @@ export function planRestore(backup: ModemBackup, snapshot: ModemSnapshot): Setup
   return {
     kind: 'restore',
     steps: withReboot(steps),
-    target: { usbnet: backup.usbnet, apn: targetApn },
+    target: { usbnet: backup.usbnet, apn: targetApn, pdpType: targetType },
     warnings,
   }
 }
@@ -193,7 +251,7 @@ export function planFactoryUsbnet(snapshot: ModemSnapshot): SetupPlan {
   return {
     kind: 'restore',
     steps: withReboot(steps),
-    target: { usbnet: 0, apn: null },
+    target: { usbnet: 0, apn: null, pdpType: null },
     warnings: ['没有原始备份，只会把 USB 网卡模式改回 0（QMI），APN 保持不变。'],
   }
 }

@@ -1,5 +1,5 @@
 import { AtTimeoutError, LinkClosedError, type AtChannel } from './at'
-import type { PlanStep, SetupPlan } from './plan'
+import { describePdpType, type PlanStep, type SetupPlan } from './plan'
 import { primaryContext, readSnapshot, type ModemSnapshot } from './status'
 
 export type ConnectionKind = 'webusb' | 'webserial' | 'demo'
@@ -81,6 +81,14 @@ export async function verifyPlan(channel: AtChannel, plan: SetupPlan): Promise<V
     const apn = primaryContext(snapshot)?.apn ?? ''
     if (apn.toLowerCase() !== plan.target.apn.toLowerCase()) {
       mismatches.push(`APN 应为「${plan.target.apn}」，实际为「${apn}」`)
+    }
+  }
+  if (plan.target.pdpType !== null) {
+    const pdpType = primaryContext(snapshot)?.pdpType ?? ''
+    if (pdpType.toUpperCase() !== plan.target.pdpType) {
+      mismatches.push(
+        `IP 类型应为「${describePdpType(plan.target.pdpType)}」，实际为「${describePdpType(pdpType)}」`,
+      )
     }
   }
   return { ok: mismatches.length === 0, snapshot, mismatches }
