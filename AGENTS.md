@@ -24,6 +24,7 @@
 | `src/transports/` | `webusb.ts`、`webserial.ts`，以及演示和测试用的模拟模块 `simulated.ts` |
 | `src/hooks/useModemSession.ts` | 连接、状态、执行计划、自动重连的会话状态 |
 | `src/components/` | 页面各面板；`IpadGuide.tsx` 是 iPad 使用说明和常见问题 |
+| `docs/releases/` | 每个版本的中文更新说明 `vX.Y.Z.md`，用作 GitHub Release 正文 |
 
 ## 必须遵守
 
@@ -64,6 +65,13 @@ npm run dev     # http://localhost:5173
 - `package.json` 的 `engines` 要求 Node `^22.22.2 || ^24.15.0 || >=26`；更低的 22.x 也能跑，`npm` 只会给出警告。
 - 改动 `src/modem/` 或 `src/transports/` 时补对应的 `*.test.ts`；改动界面流程时补 `src/App.test.tsx`。
 - 没有硬件时，用页面上的「演示模式」（`SimulatedModule`）手动验证界面；它模拟移远格式的回复和重启。
+
+## 版本号与发布
+
+- 版本号只在 `package.json`（和 `package-lock.json` 顶部）维护；`vite.config.ts` 通过 `define` 注入为 `__APP_VERSION__`，显示在页面底部。
+- 发新版本时：同时改 `package.json` 和 `package-lock.json` 的 `version`，在 `docs/releases/` 新增 `vX.Y.Z.md`。
+- 更新说明会直接粘贴到 GitHub Release，每个段落和列表项写成一行，不要手动折行（Release 页面会把单个换行显示出来）。
+- 标签 `vX.Y.Z` 打在已合并到 `main`、且 `package.json` 已是该版本号的提交上；标签和 Release 由用户在 GitHub 上创建。
 
 ## Cursor Cloud specific instructions
 
