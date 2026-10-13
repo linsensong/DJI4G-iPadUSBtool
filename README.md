@@ -11,16 +11,9 @@
 
 ## 快速开始
 
-需要先安装 [Node.js](https://nodejs.org/)（推荐 Node.js 24 LTS，版本至少 24.15.0；也支持 22.22.2 或更高的 22.x，以及 26 或更高版本）。
+用**桌面版 Chrome 或 Edge** 打开在线版：<https://linsensong.github.io/DJI4G-iPadUSBtool/>
 
-```bash
-git clone https://github.com/linsensong/DJI4G-iPadUSBtool.git
-cd DJI4G-iPadUSBtool
-npm install
-npm run dev
-```
-
-用**桌面版 Chrome 或 Edge** 打开 <http://localhost:5173>（必须是 localhost 或 https，否则浏览器会禁用 USB 访问）。
+不需要下载或安装任何东西。网页只在你的浏览器里运行，模块信息和备份都不会上传。也可以按下文「在本机运行」自己启动。
 
 1. **连接模块**：模块插好 SIM 卡，用支持数据的 USB 线接到电脑。
    - macOS / Linux / Android：选「USB 直连」（WebUSB，免驱动）。macOS 请先退出 DJOneHub 等占用模块的程序。
@@ -35,6 +28,22 @@ npm run dev
 需要把模块装回无人机或给其他程序使用时，用页面上的「恢复原始配置」写回备份。没有硬件也可以先用「演示模式」完整走一遍流程。
 
 本工具只会写入 `usbnet` 和 PDP 上下文 1（APN 与 IP 类型）这两项，不会改动模块的 USB 身份（USBCFG）。AT 调试台中的危险指令需要二次确认，修改 IMEI 的指令会被直接拒绝。
+
+原始配置备份保存在当前网址对应的浏览器存储里，在线版和本机运行（localhost）的备份互相看不到。换用另一种方式前，
+先在原来的页面下载备份文件；需要恢复时，在「恢复原始配置」里用「导入备份文件」。
+
+### 在本机运行
+
+需要先安装 [Node.js](https://nodejs.org/)（推荐 Node.js 24 LTS，版本至少 24.15.0；也支持 22.22.2 或更高的 22.x，以及 26 或更高版本）。
+
+```bash
+git clone https://github.com/linsensong/DJI4G-iPadUSBtool.git
+cd DJI4G-iPadUSBtool
+npm install
+npm run dev
+```
+
+然后打开 <http://localhost:5173>（必须是 localhost 或 https，否则浏览器会禁用 USB 访问）。
 
 ## 已知问题：iPad 休眠后断网
 
@@ -57,6 +66,8 @@ npm test        # Vitest 单元测试与界面流程测试（使用模拟模块�
 npm run lint
 npm run build
 ```
+
+合并到 `main` 后，`.github/workflows/deploy.yml` 会自动检查、构建并发布到 GitHub Pages。
 
 | 目录 | 内容 |
 | --- | --- |

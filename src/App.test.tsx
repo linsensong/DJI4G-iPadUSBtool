@@ -40,6 +40,14 @@ describe('<App />', () => {
     expect(screen.getByRole('button', { name: /演示模式/ })).toBeEnabled()
   })
 
+  it('points insecure pages to the online version', () => {
+    renderApp({}, { ...MAC, secureContext: false })
+    expect(screen.getByTestId('env-notice')).toHaveTextContent(
+      '请改用在线版 https://linsensong.github.io/DJI4G-iPadUSBtool/，或在本机通过 http://localhost:5173 打开本页面。',
+    )
+    expect(screen.getByRole('button', { name: /USB 直连/ })).toBeDisabled()
+  })
+
   it('switches a factory module to iPad mode and restores it again', async () => {
     renderApp()
     await connectDemo()

@@ -34,8 +34,9 @@ function EnvironmentNotice({ support }: { support: BrowserSupport }) {
   if (!support.secureContext) {
     return (
       <p className="notice notice--warn" data-testid="env-notice">
-        当前页面不是安全上下文，浏览器会禁用 USB 和串口访问。请通过 <code>http://localhost:5173</code>{' '}
-        或 https 地址打开本页面。
+        当前页面不是安全上下文，浏览器会禁用 USB 和串口访问。请改用在线版{' '}
+        <code>https://linsensong.github.io/DJI4G-iPadUSBtool/</code>，或在本机通过{' '}
+        <code>http://localhost:5173</code> 打开本页面。
       </p>
     )
   }
