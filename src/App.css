@@ -80,7 +80,6 @@
 .app__version {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.78rem;
-  color: #565d70;
 }
 
 code {
