@@ -10,6 +10,9 @@
 - 模块：DJI Cellular 一代，USB `2ca3:4006`，设备名 Baiwang，内部是移远 EG25-G 平台模组。
 - 核心操作：`AT+QCFG="usbnet",1`（ECM）、`AT+CGDCONT=1,"<IP|IPV4V6>","<APN>"`、`AT+CFUN=1,1`（重启生效）。
 - 首次连接时自动备份原始配置到 localStorage（键 `dji4g.original-backup.<IMEI>`，第一次的备份不会被覆盖），可一键恢复。
+  localStorage 按网址隔离，在线版和 localhost 的备份互相看不到。
+- 在线版：<https://linsensong.github.io/DJI4G-iPadUSBtool/>。合并到 `main` 后由 `.github/workflows/deploy.yml` 检查、构建并发布到 GitHub Pages；
+  `vite.config.ts` 的 `base` 是 `'./'`，这样产物放在子路径下也能加载，不要改成绝对路径。
 
 ## 代码结构
 
