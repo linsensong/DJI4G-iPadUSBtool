@@ -11,7 +11,7 @@
 
 ## 快速开始
 
-需要先安装 [Node.js](https://nodejs.org/)（18 或更高版本）。
+需要先安装 [Node.js](https://nodejs.org/)（推荐 Node.js 24 LTS，版本至少 24.15.0；也支持 22.22.2 或更高的 22.x，以及 26 或更高版本）。
 
 ```bash
 git clone https://github.com/linsensong/DJI4G-iPadUSBtool.git
@@ -35,6 +35,8 @@ npm run dev
 本工具只会写入 `usbnet` 和 APN（PDP 上下文 1）这两项，不会改动模块的 USB 身份（USBCFG）。AT 调试台中的危险指令需要二次确认，修改 IMEI 的指令会被直接拒绝。
 
 ## 开发
+
+依赖使用最新稳定的兼容版本。TypeScript 暂使用 6.0 系列，因为当前 typescript-eslint 尚不支持 TypeScript 7。
 
 ```bash
 npm test        # Vitest 单元测试与界面流程测试（使用模拟模块）

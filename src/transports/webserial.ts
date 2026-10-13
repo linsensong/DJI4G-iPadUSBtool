@@ -110,7 +110,7 @@ export async function openWebSerialChannel(
   try {
     link = await WebSerialLink.open(port)
   } catch (error) {
-    throw new Error(`无法打开串口：${(error as Error).message}。请先关闭 llcom 等占用串口的软件。`)
+    throw new Error(`无法打开串口：${(error as Error).message}。请先关闭 llcom 等占用串口的软件。`, { cause: error })
   }
   const channel = new AtChannel(link)
   if (await probe(channel, probeTimeoutMs)) return channel
