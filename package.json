@@ -1,7 +1,7 @@
 {
   "name": "dji4g-ipad-usb-tool",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "把大疆一代 4G 模块切换为 USB ECM 网卡，让 Wi-Fi 版 iPad 通过 USB-C 用 SIM 卡流量上网",
   "author": "Johnny Lin (https://github.com/linsensong)",
   "license": "MIT",
