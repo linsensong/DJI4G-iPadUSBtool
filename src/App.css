@@ -64,11 +64,22 @@
 }
 
 .app__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   text-align: center;
   padding: 22px;
   color: #6b7285;
   font-size: 0.85rem;
   border-top: 1px solid var(--line);
+}
+.app__footer p {
+  margin: 0;
+}
+
+.app__version {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
 }
 
 code {

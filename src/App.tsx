@@ -145,7 +145,12 @@ export default function App({ sessionOptions, support: supportOverride }: AppPro
       </main>
 
       <footer className="app__footer">
-        非官方工具，与 DJI、Quectel 及运营商无关。修改模块配置前会自动备份，所有数据只保存在本机浏览器。
+        <p>
+          非官方工具，与 DJI、Quectel 及运营商无关。修改模块配置前会自动备份，所有数据只保存在本机浏览器。
+        </p>
+        <p className="app__version" data-testid="app-version">
+          版本 v{__APP_VERSION__}
+        </p>
       </footer>
     </div>
   )

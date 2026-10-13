@@ -136,6 +136,12 @@ describe('<App />', () => {
     expect(screen.getByRole('checkbox', { name: /关闭 IPv6/ })).toBeChecked()
   })
 
+  it('shows the package version in the footer', () => {
+    renderApp()
+    expect(__APP_VERSION__).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/)
+    expect(screen.getByTestId('app-version')).toHaveTextContent(`版本 v${__APP_VERSION__}`)
+  })
+
   it('documents the sleep disconnect in the iPad guide', () => {
     renderApp()
     const faq = screen.getByTestId('faq-sleep')
